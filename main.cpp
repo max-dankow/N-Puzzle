@@ -32,14 +32,10 @@ const int D_LEFT = 1;
 const int D_RIGTH = 2;
 const int D_DOWN = 3;
 
-bool operator ==(const Set_Node &a, const Set_Node &b)
-{
-    return a.state == b.state;
-}
-
 bool operator <(const Set_Node &a, const Set_Node &b)
 {
-    return a.state < b.state;
+    return (a.priority < b.priority ||
+            (a.priority == b.priority && a.state < b.state));
 }
 
 void print(tState state)
@@ -193,14 +189,14 @@ int where_from(tState start, tState finish)
 
 std::vector<int> restore_way(const std::map<tState, Info> &closed, tState goal)
 {
-    std::cout << "RESTORING...\n";
+    //std::cout << "RESTORING...\n";
 
     auto state_it = closed.find(goal);
     std::vector<int> way;
 
     while (state_it->second.parent != -1)
     {
-        print(state_it->first);
+        //print(state_it->first);
         way.push_back(where_from(state_it->first, state_it->second.parent));
 
         state_it = closed.find(state_it->second.parent);
@@ -226,12 +222,14 @@ std::vector<int> dijkstra(const tState &start, const tState &goal)
 
     while (open.size() != 0)
     {
-        Set_Node current = (*open.rbegin());
+        Set_Node current = (*open.begin());
         //print(current.first);
         open.erase(current);
 
-        Info to_close = {current.distance, current.parent, current.priority};
-
+        Info to_close;// = {current.parent,  current.priority, current.distance};
+        to_close.distance = current.distance;
+        to_close.parent = current.parent;
+        to_close.priority = current.priority;
 
         closed.insert(std::make_pair(current.state, to_close));
 
