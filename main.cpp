@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <vector>
 #include <set>
+#include <map>
 
 
 int size = 3;
@@ -11,26 +12,34 @@ int element_number = size * size;
 
 typedef unsigned long long tState;
 
-typedef struct {
+struct Set_Node
+{
     tState state;
     long long priority;
     long long distance;
     tState parent;
-} Info;
+};
+
+struct Info
+{
+    long long priority;
+    long long distance;
+    tState parent;
+};
 
 const int D_UP = 0;
 const int D_LEFT = 1;
 const int D_RIGTH = 2;
 const int D_DOWN = 3;
 
-bool operator ==(const Info &a, const Info &b)
+bool operator ==(const Set_Node &a, const Set_Node &b)
 {
     return a.state == b.state;
 }
 
-bool operator <(const Info &a, const Info &b)
+bool operator <(const Set_Node &a, const Set_Node &b)
 {
-    return a.priority < b.priority;
+    return a.state < b.state;
 }
 
 void print(tState state)
@@ -182,22 +191,19 @@ int where_from(tState start, tState finish)
     assert(false);
 }
 
-std::vector<int> restore_way(const std::set<Info> &closed, tState goal)
+std::vector<int> restore_way(const std::map<tState, Info> &closed, tState goal)
 {
-    //std::cout << "RESTORING...\n";
-    Info tmp;
-    tmp.state = goal;
+    std::cout << "RESTORING...\n";
 
-    auto state_it = closed.find(tmp);
+    auto state_it = closed.find(goal);
     std::vector<int> way;
 
-    while (state_it->parent != -1)
+    while (state_it->second.parent != -1)
     {
-        //print(state_it->first);
-        way.push_back(where_from(state_it->state, state_it->parent));
+        print(state_it->first);
+        way.push_back(where_from(state_it->first, state_it->second.parent));
 
-        tmp.state = state_it->parent;
-        state_it = closed.find(tmp);
+        state_it = closed.find(state_it->second.parent);
     }
 
     std::reverse(way.begin(), way.end());
@@ -206,8 +212,9 @@ std::vector<int> restore_way(const std::set<Info> &closed, tState goal)
 
 std::vector<int> dijkstra(const tState &start, const tState &goal)
 {
-    std::set<Info> closed, open;
-    Info start_info;
+    std::set<Set_Node> open;
+    std::map<tState, Info> closed;
+    Set_Node start_info;
     start_info.state = start;
     start_info.distance = 0;
     start_info.parent = -1;
@@ -219,11 +226,14 @@ std::vector<int> dijkstra(const tState &start, const tState &goal)
 
     while (open.size() != 0)
     {
-        Info current = (*open.rbegin());
+        Set_Node current = (*open.rbegin());
         //print(current.first);
         open.erase(current);
 
-        closed.insert(current);
+        Info to_close = {current.distance, current.parent, current.priority};
+
+
+        closed.insert(std::make_pair(current.state, to_close));
 
         if (current.state == goal)
         {
@@ -234,38 +244,18 @@ std::vector<int> dijkstra(const tState &start, const tState &goal)
         for (int i = 0; i < 4; ++i)
         {
             tState new_state = move_to(current.state, i);
-            Info to_find;
-            to_find.state = new_state;
 
-            if (closed.find(to_find) != closed.end())
+            if (closed.find(new_state) != closed.end())
                 continue;
 
             if (new_state != current.state)
             {
-                auto new_state_it = open.find(to_find);
-
-                if (new_state_it == open.end())
-                {
-                    Info new_info;
-                    new_info.state = new_state;
-                    new_info.parent = current.state;
-                    new_info.distance = current.distance + 1;
-                    new_info.priority = new_info.distance + estimation(new_state);
-                    open.insert(new_info);
-                }
-                else
-                {
-                    if (current.distance + 1 < new_state_it->distance)
-                    {
-                        Info new_info;
-                        new_info.state = new_state;
-                        new_info.parent = current.state;
-                        new_info.distance = current.distance + 1;
-                        new_info.priority = new_info.distance + estimation(new_state);
-                        open.erase(new_info);
-                        open.insert(new_info);
-                    }
-                }
+                Set_Node new_info;
+                new_info.state = new_state;
+                new_info.parent = current.state;
+                new_info.distance = current.distance + 1;
+                new_info.priority = new_info.distance + estimation(new_state);
+                open.insert(new_info);
             }
         }
 
@@ -276,7 +266,7 @@ std::vector<int> dijkstra(const tState &start, const tState &goal)
 
 int main()
 {
-    //freopen("input.txt", "r", stdin);
+    freopen("input.txt", "r", stdin);
 
     std::vector<int> start_table, goal_table;
 
