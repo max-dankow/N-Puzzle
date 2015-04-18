@@ -3,145 +3,36 @@
 #include <assert.h>
 #include <algorithm>
 #include <vector>
-#include <map>
+#include <set>
 
 
 int size = 3;
 int element_number = size * size;
 
 typedef unsigned long long tState;
+
 typedef struct {
+    tState state;
     long long priority;
     long long distance;
     tState parent;
 } Info;
-
-typedef std::pair<tState, Info> Node_Pair;
 
 const int D_UP = 0;
 const int D_LEFT = 1;
 const int D_RIGTH = 2;
 const int D_DOWN = 3;
 
-bool operator ==(const Node_Pair &a, const Node_Pair &b)
+bool operator ==(const Info &a, const Info &b)
 {
-    return a.first == b.first;
+    return a.state == b.state;
 }
 
-
-/*
-class Field
+bool operator <(const Info &a, const Info &b)
 {
-public:
-    tState state;
-    size_t size;
-    size_t element_number;
-    size_t free_index;
-
-    Field(void);
-    void set_state(size_t new_size, const std::vector<int> &data);
-    void print(void) const;
-    void move_to(Field &dst, int direction);
-
-    void swap_elements(ssize_t index1, ssize_t index2);
-};
-*/
-/*
-void Field::swap_elements(ssize_t index1, ssize_t index2)
-{
-    if (!(index1 >= 0 && index1 < element_number &&
-        index2 >= 0 && index2 < element_number))
-    {
-        return;
-    }
-
-    std::vector<int> table;
-    tState local_state = state;
-
-    for (size_t i = 0; i < element_number; ++i)
-    {
-        table.push_back(local_state % element_number);
-        local_state /= element_number;
-    }
-
-    std::swap(table[index1], table[index2]);
-    set_state(size, table);
-    print();
+    return a.priority < b.priority;
 }
 
-void Field::print(void) const
-{
-    tState local_state = state;
-
-    for (size_t i = 0; i < size; ++i)
-    {
-        for (size_t i = 0; i < size; ++i)
-        {
-            std::cout << local_state % element_number << ' ';
-            local_state /= element_number;
-        }
-
-        std::cout << '\n';
-    }
-
-    std::cout << '\n';
-}
-
-Field::Field(void)
-{
-}
-
-void Field::set_state(size_t new_size, const std::vector<int> &data)
-{
-    assert(new_size > 0);
-    assert(data.size() == new_size * new_size);
-
-    state = 0;
-    size = new_size;
-    element_number = size * size;
-    free_index = element_number;
-
-    for (ssize_t i = data.size() - 1; i >= 0; --i)
-    {
-        if (data[i] == 0)
-        {
-            free_index = i;
-        }
-
-        state = state * element_number + data[i];
-        //std::cout << state << ' ' << data[i] << '\n';
-    }
-
-    assert(free_index < element_number);
-}
-
-void Field::move_to(Field &dst, int direction)
-{
-    dst.element_number = element_number;
-    dst.free_index = free_index;
-    dst.size = size;
-    dst.state = state;
-
-    switch (direction)
-    {
-    case D_DOWN:
-        dst.swap_elements(dst.free_index, dst.free_index + size);
-        break;
-
-    case D_UP:
-        dst.swap_elements(dst.free_index, dst.free_index - size);
-        break;
-
-    case D_LEFT:
-        dst.swap_elements(dst.free_index, dst.free_index - 1);
-        break;
-
-    case D_RIGTH:
-        dst.swap_elements(dst.free_index, dst.free_index + 1);
-        break;
-    }
-}
-*/
 void print(tState state)
 {
     tState local_state = state;
@@ -179,7 +70,7 @@ tState move_to(tState state, int direction)
 {
     std::vector<int> table;
     tState local_state = state;
-    size_t free_index = element_number;
+    ssize_t free_index = element_number;
 
     for (size_t i = 0; i < element_number; ++i)
     {
@@ -201,24 +92,35 @@ tState move_to(tState state, int direction)
     switch (direction)
     {
     case D_DOWN:
-        offset = size;
+        if ((free_index / size) + 1 < size)
+        {
+            offset = size;
+        }
         break;
 
     case D_UP:
-        offset = -size;
+        if ((free_index / size) - 1 >= 0)
+        {
+            offset = -size;
+        }
         break;
 
     case D_LEFT:
-        offset = -1;
+        if ((free_index % size) - 1 >= 0)
+        {
+            offset = -1;
+        }
         break;
 
     case D_RIGTH:
-        offset = 1;
+        if ((free_index % size) + 1 < size)
+        {
+            offset = 1;
+        }
         break;
     }
 
-    if (!(free_index >= 0 && free_index < element_number &&
-        free_index + offset >= 0 && free_index + offset < element_number))
+    if (offset == 0)
     {
         return state;
     }
@@ -280,18 +182,22 @@ int where_from(tState start, tState finish)
     assert(false);
 }
 
-std::vector<int> restore_way(const std::map<tState, Info> &closed, tState goal)
+std::vector<int> restore_way(const std::set<Info> &closed, tState goal)
 {
-    std::cout << "RESTORING...\n";
-    auto state_it = closed.find(goal);
+    //std::cout << "RESTORING...\n";
+    Info tmp;
+    tmp.state = goal;
+
+    auto state_it = closed.find(tmp);
     std::vector<int> way;
 
-    while (state_it->second.parent != -1)
+    while (state_it->parent != -1)
     {
-        print(state_it->first);
-        way.push_back(where_from(state_it->first, state_it->second.parent));
+        //print(state_it->first);
+        way.push_back(where_from(state_it->state, state_it->parent));
 
-        state_it = closed.find(state_it->second.parent);
+        tmp.state = state_it->parent;
+        state_it = closed.find(tmp);
     }
 
     std::reverse(way.begin(), way.end());
@@ -300,73 +206,82 @@ std::vector<int> restore_way(const std::map<tState, Info> &closed, tState goal)
 
 std::vector<int> dijkstra(const tState &start, const tState &goal)
 {
-    std::map<tState, Info> closed, open;
+    std::set<Info> closed, open;
     Info start_info;
+    start_info.state = start;
     start_info.distance = 0;
     start_info.parent = -1;
     start_info.priority = estimation(start);
 
-    open.insert(std::make_pair(start, start_info));
-    print(start);
-    print(goal);
+    open.insert(start_info);
+    //print(start);
+    //size(goal);
 
     while (open.size() != 0)
     {
-        Node_Pair current = (*open.rbegin());
-        print(current.first);
-        open.erase(current.first);
+        Info current = (*open.rbegin());
+        //print(current.first);
+        open.erase(current);
 
         closed.insert(current);
 
-        if (current.first == goal)
+        if (current.state == goal)
         {
-            std::cout << "FIND!!" << '\n';
+            //std::cout << "FIND!!" << '\n';
             return restore_way(closed, goal);
         }
 
         for (int i = 0; i < 4; ++i)
         {
-            tState new_state = move_to(current.first, i);
+            tState new_state = move_to(current.state, i);
+            Info to_find;
+            to_find.state = new_state;
 
-            if (closed.find(new_state) != closed.end())
+            if (closed.find(to_find) != closed.end())
                 continue;
 
-            if (new_state != current.first)
+            if (new_state != current.state)
             {
-                auto new_state_it = open.find(new_state);
+                auto new_state_it = open.find(to_find);
 
                 if (new_state_it == open.end())
                 {
                     Info new_info;
-                    new_info.parent = current.first;
-                    new_info.distance = current.second.distance + 1;
-                    new_info.distance = new_info.distance + estimation(new_state);
-                    open.insert(std::make_pair(new_state, new_info));
+                    new_info.state = new_state;
+                    new_info.parent = current.state;
+                    new_info.distance = current.distance + 1;
+                    new_info.priority = new_info.distance + estimation(new_state);
+                    open.insert(new_info);
                 }
                 else
                 {
-                    if (current.second.distance + 1 < new_state_it->second.distance)
+                    if (current.distance + 1 < new_state_it->distance)
                     {
                         Info new_info;
-                        new_info.parent = current.first;
-                        new_info.distance = current.second.distance + 1;
-                        new_info.distance = new_info.distance + estimation(new_state);
-                        open.erase(new_state);
-                        open.insert(std::make_pair(new_state, new_info));
+                        new_info.state = new_state;
+                        new_info.parent = current.state;
+                        new_info.distance = current.distance + 1;
+                        new_info.priority = new_info.distance + estimation(new_state);
+                        open.erase(new_info);
+                        open.insert(new_info);
                     }
                 }
             }
         }
 
     }
+    std::vector<int> a;
+    return a;
 }
 
 int main()
 {
-    freopen("input.txt", "r", stdin);
+    //freopen("input.txt", "r", stdin);
 
-    //Field start;
     std::vector<int> start_table, goal_table;
+
+    std::cin >> size;
+    element_number = size * size;
 
     for (int i = 0; i < size; ++i)
     {
@@ -379,21 +294,9 @@ int main()
         }
     }
 
-    /*std::cout << sizeof(start) << '\n';
-
-    start.set_state(SIZE, start_table);
-    start.print();
-    for (int i = 0; i < 4; ++i)
-    {
-        Field start2;
-        start2.element_number = start.element_number;
-        start2.free_index = start.free_index;
-        start2.size = start.size;
-        start2.state = start.state;
-        start2.move_to(start2, i);
-    }*/
     std::vector<int> answer;
     answer = dijkstra(get_state(start_table), get_state(goal_table));
+    std::cout << answer.size() << '\n';
     for (int d : answer)
     {
         switch (d) {
