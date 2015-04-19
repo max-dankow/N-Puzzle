@@ -137,7 +137,24 @@ tState move_to(tState state, int direction)
 
 long long estimation(tState state)
 {
-    return 0;
+    int sum = 0;
+
+    for (size_t i = 0; i < size; ++i)
+    {
+        for (size_t j = 0; j < size; ++j)
+        {
+            int number = state % element_number;
+
+            if (number != 0)
+            {
+                sum += abs(number / size - i) + abs(number % size - j);
+            }
+
+            state /= element_number;
+        }
+    }
+
+    return sum;
 }
 
 int where_from(tState start, tState finish)
@@ -281,6 +298,8 @@ int main()
             goal_table.push_back(i * size + j);
         }
     }
+
+    std::cout << estimation(get_state(start_table))<< ' '<<estimation(get_state(goal_table))<<'\n';
 
     std::vector<int> answer;
     answer = dijkstra(get_state(start_table), get_state(goal_table));
