@@ -6,41 +6,62 @@
 #include <set>
 #include <map>
 
+typedef unsigned long long State;
 
-int size = 3;
-int element_number = size * size;
-
-typedef unsigned long long tState;
-
-struct Set_Node
+struct SetNode
 {
-    tState state;
+    State state;
     long long priority;
     long long distance;
-    tState parent;
+    State parent;
 };
 
 struct Info
 {
     long long priority;
     long long distance;
-    tState parent;
+    State parent;
 };
+
+bool operator <(const SetNode &a, const SetNode &b)
+{
+    return (a.priority < b.priority || (a.priority == b.priority && a.state < b.state));
+}
 
 const int D_UP = 0;
 const int D_LEFT = 1;
 const int D_RIGTH = 2;
 const int D_DOWN = 3;
 
-bool operator <(const Set_Node &a, const Set_Node &b)
+class CPuzzleSolver
 {
-    return (a.priority < b.priority ||
-            (a.priority == b.priority && a.state < b.state));
+public:
+    void print_field(State state);
+
+    CPuzzleSolver(ssize_t new_size);
+    State get_state(const std::vector<int> &data);
+    std::vector<int> solve_puzzle(const State &start, const State &goal);
+
+private:
+    ssize_t size;
+    ssize_t element_number;
+    State start, goal;
+
+    State move_to(State state, int direction);
+    long long estimation(State state);
+    int get_direction(State start, State finish);
+    std::vector<int> restore_way(const std::map<State, Info> &closed, State goal);
+};
+
+CPuzzleSolver::CPuzzleSolver(ssize_t new_size)
+{
+    size = new_size;
+    element_number = new_size * new_size;
 }
 
-void print(tState state)
+void CPuzzleSolver::print_field(State state)
 {
-    tState local_state = state;
+    State local_state = state;
 
     for (size_t i = 0; i < size; ++i)
     {
@@ -49,32 +70,29 @@ void print(tState state)
             std::cout << local_state % element_number << ' ';
             local_state /= element_number;
         }
-
         std::cout << '\n';
     }
-
     std::cout << '\n';
 }
 
-tState get_state(const std::vector<int> &data)
+State CPuzzleSolver::get_state(const std::vector<int> &data)
 {
     assert(size > 0);
     assert(data.size() == size * size);
 
-    tState state = 0;
+    State state = 0;
 
     for (ssize_t i = data.size() - 1; i >= 0; --i)
     {
         state = state * element_number + data[i];
     }
-
     return state;
 }
 
-tState move_to(tState state, int direction)
+State CPuzzleSolver::move_to(State state, int direction)
 {
     std::vector<int> table;
-    tState local_state = state;
+    State local_state = state;
     ssize_t free_index = element_number;
 
     for (size_t i = 0; i < element_number; ++i)
@@ -91,7 +109,6 @@ tState move_to(tState state, int direction)
     }
 
     assert(free_index < element_number);
-
     ssize_t offset = 0;
 
     switch (direction)
@@ -135,7 +152,7 @@ tState move_to(tState state, int direction)
     return get_state(table);
 }
 
-long long estimation(tState state)
+long long CPuzzleSolver::estimation(State state)
 {
     int sum = 0;
 
@@ -157,46 +174,45 @@ long long estimation(tState state)
     return sum;
 }
 
-int where_from(tState start, tState finish)
+int CPuzzleSolver::get_direction(State start, State finish)
 {
-    ssize_t free_index1 = element_number;
-    ssize_t free_index2 = element_number;
+    ssize_t free_index_start = element_number;
+    ssize_t free_index_finish = element_number;
 
     for (size_t i = 0; i < element_number; ++i)
     {
         if (start % element_number == 0)
         {
-            free_index1 = i;
+            free_index_start = i;
         }
         start /= element_number;
 
         if (finish % element_number == 0)
         {
-            free_index2 = i;
+            free_index_finish = i;
         }
-
         finish /= element_number;
     }
 
-    assert(free_index1 < element_number);
-    assert(free_index2 < element_number);
+    assert(free_index_start < element_number);
+    assert(free_index_finish < element_number);
 
-    if (free_index1 == free_index2 + 1)
+    if (free_index_start == free_index_finish + 1)
     {
         return D_RIGTH;
     }
 
-    if (free_index1 == free_index2 - 1)
+    if (free_index_start == free_index_finish - 1)
     {
         return D_LEFT;
     }
 
-    if (free_index1 == free_index2 + size)
+    if (free_index_start == free_index_finish + size)
     {
         return D_DOWN;
     }
 
-    if (free_index1 == free_index2 - size)
+    if (free_index_start == free_index_finish - size)
     {
         return D_UP;
     }
@@ -204,18 +220,14 @@ int where_from(tState start, tState finish)
     assert(false);
 }
 
-std::vector<int> restore_way(const std::map<tState, Info> &closed, tState goal)
+std::vector<int> CPuzzleSolver::restore_way(const std::map<State, Info> &closed, State goal)
 {
-    //std::cout << "RESTORING...\n";
-
     auto state_it = closed.find(goal);
     std::vector<int> way;
 
     while (state_it->second.parent != -1)
     {
-        //print(state_it->first);
-        way.push_back(where_from(state_it->first, state_it->second.parent));
-
+        way.push_back(get_direction(state_it->first, state_it->second.parent));
         state_it = closed.find(state_it->second.parent);
     }
 
@@ -223,49 +235,43 @@ std::vector<int> restore_way(const std::map<tState, Info> &closed, tState goal)
     return way;
 }
 
-std::vector<int> dijkstra(const tState &start, const tState &goal)
+std::vector<int> CPuzzleSolver::solve_puzzle(const State &start, const State &goal)
 {
-    std::set<Set_Node> open;
-    std::map<tState, Info> closed;
-    Set_Node start_info;
+    std::set<SetNode> open;
+    std::map<State, Info> closed;
+    SetNode start_info;
     start_info.state = start;
     start_info.distance = 0;
     start_info.parent = -1;
     start_info.priority = estimation(start);
-
     open.insert(start_info);
-    //print(start);
-    //size(goal);
 
     while (open.size() != 0)
     {
-        Set_Node current = (*open.begin());
-        //print(current.first);
+        SetNode current = (*open.begin());
         open.erase(current);
 
-        Info to_close;// = {current.parent,  current.priority, current.distance};
+        Info to_close;
         to_close.distance = current.distance;
         to_close.parent = current.parent;
         to_close.priority = current.priority;
-
         closed.insert(std::make_pair(current.state, to_close));
 
         if (current.state == goal)
         {
-            //std::cout << "FIND!!" << '\n';
             return restore_way(closed, goal);
         }
 
         for (int i = 0; i < 4; ++i)
         {
-            tState new_state = move_to(current.state, i);
+            State new_state = move_to(current.state, i);
 
             if (closed.find(new_state) != closed.end())
                 continue;
 
             if (new_state != current.state)
             {
-                Set_Node new_info;
+                SetNode new_info;
                 new_info.state = new_state;
                 new_info.parent = current.state;
                 new_info.distance = current.distance + 1;
@@ -275,38 +281,17 @@ std::vector<int> dijkstra(const tState &start, const tState &goal)
         }
 
     }
-    std::vector<int> a;
-    return a;
+    return std::vector<int>();
 }
 
-int main()
+void print_answer(const std::vector<int> &answer)
 {
-    freopen("input.txt", "r", stdin);
-
-    std::vector<int> start_table, goal_table;
-
-    std::cin >> size;
-    element_number = size * size;
-
-    for (int i = 0; i < size; ++i)
-    {
-        for (int j = 0; j < size; ++j)
-        {
-            int input_number;
-            std::cin >> input_number;
-            start_table.push_back(input_number);
-            goal_table.push_back(i * size + j);
-        }
-    }
-
-    std::cout << estimation(get_state(start_table))<< ' '<<estimation(get_state(goal_table))<<'\n';
-
-    std::vector<int> answer;
-    answer = dijkstra(get_state(start_table), get_state(goal_table));
     std::cout << answer.size() << '\n';
+
     for (int d : answer)
     {
-        switch (d) {
+        switch (d)
+        {
         case D_DOWN:
             std::cout << "DOWN\n";
             break;
@@ -321,6 +306,39 @@ int main()
             break;
         }
     }
+}
 
+void read_input(std::vector<int> &start_table, std::vector<int> &goal_table, ssize_t &size)
+{
+    std::cin >> size;
+    start_table.clear();
+    goal_table.clear();
+
+    for (int i = 0; i < size; ++i)
+    {
+        for (int j = 0; j < size; ++j)
+        {
+            int input_number;
+            std::cin >> input_number;
+            start_table.push_back(input_number);
+            goal_table.push_back(i * size + j);
+        }
+    }
+}
+
+int main()
+{
+    //freopen("input.txt", "r", stdin);
+    std::vector<int> start_table, goal_table;
+    ssize_t size;
+    read_input(start_table, goal_table, size);
+
+    CPuzzleSolver solver(size);
+    State start = solver.get_state(start_table);
+    State goal = solver.get_state(goal_table);
+    std::vector<int> answer;
+    answer = solver.solve_puzzle(start, goal);
+
+    print_answer(answer);
     return 0;
 }
