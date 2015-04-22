@@ -6,7 +6,7 @@
 #include <set>
 #include <map>
 
-typedef unsigned long long State;
+typedef unsigned long long State;//тип в котром будем хранить закодированное состояние поля
 
 struct SetNode
 {
@@ -40,7 +40,7 @@ struct Offset
 {
     int x[4];
     int y[4];
-};
+} moves = {{0, -1, 0, 1}, {-1, 0, 1, 0}};
 
 char* direction_names[4] = {"UP", "LEFT", "DOWN", "RIGHT"};
 
@@ -49,18 +49,17 @@ class CPuzzleSolver
 public:
     void print_field(State state);
     CPuzzleSolver(ssize_t new_size);
-    State get_state(const std::vector<int> &data);
+    State encode_vector_to_state(const std::vector<int> &data);//закодировать поле
     std::vector<int> solve_puzzle(const State &start, const State &goal);
 
 private:
     ssize_t size;
     ssize_t element_number;
     State start, goal;
-    Offset moves = {{0, -1, 0, 1}, {-1, 0, 1, 0}};
 
-    State move_to(State state, Directions direction);
-    long long estimation(State state);
-    int get_direction(State start, State finish);
+    State move_free_cell_to(State state, Directions direction);
+    long long calculate_manhattan_distance(State state);
+    int recognize_direction(State start, State finish);
     std::vector<int> restore_way(const std::map<State, Info> &closed, State goal);
     bool is_valid_coordinates(int x, int y);
 };
@@ -92,7 +91,7 @@ void CPuzzleSolver::print_field(State state)
     std::cout << '\n';
 }
 
-State CPuzzleSolver::get_state(const std::vector<int> &data)
+State CPuzzleSolver::encode_vector_to_state(const std::vector<int> &data)
 {
     assert(size > 0);
     assert(data.size() == size * size);
@@ -106,7 +105,7 @@ State CPuzzleSolver::get_state(const std::vector<int> &data)
     return state;
 }
 
-State CPuzzleSolver::move_to(State state, Directions direction)
+State CPuzzleSolver::move_free_cell_to(State state, Directions direction)
 {
     std::vector<int> table;
     State local_state = state;
@@ -134,13 +133,12 @@ State CPuzzleSolver::move_to(State state, Directions direction)
     {
         std::swap(table[free_index], table[free_index + moves.x[direction] + moves.y[direction] * size]);
     }
-    return get_state(table);
+    return encode_vector_to_state(table);
 }
 
-long long CPuzzleSolver::estimation(State state)
+long long CPuzzleSolver::calculate_manhattan_distance(State state)
 {
     int sum = 0;
-
     for (size_t i = 0; i < size; ++i)
     {
         for (size_t j = 0; j < size; ++j)
@@ -155,11 +153,10 @@ long long CPuzzleSolver::estimation(State state)
             state /= element_number;
         }
     }
-
     return sum;
 }
 
-int CPuzzleSolver::get_direction(State start, State finish)
+int CPuzzleSolver::recognize_direction(State start, State finish)
 {
     ssize_t free_index_start = element_number;
     ssize_t free_index_finish = element_number;
@@ -197,7 +194,7 @@ std::vector<int> CPuzzleSolver::restore_way(const std::map<State, Info> &closed,
 
     while (state_it->second.parent != -1)
     {
-        way.push_back(get_direction(state_it->first, state_it->second.parent));
+        way.push_back(recognize_direction(state_it->first, state_it->second.parent));
         state_it = closed.find(state_it->second.parent);
     }
 
@@ -213,7 +210,7 @@ std::vector<int> CPuzzleSolver::solve_puzzle(const State &start, const State &go
     start_info.state = start;
     start_info.distance = 0;
     start_info.parent = -1;
-    start_info.priority = estimation(start);
+    start_info.priority = calculate_manhattan_distance(start);
     open.insert(start_info);
 
     while (open.size() != 0)
@@ -234,7 +231,7 @@ std::vector<int> CPuzzleSolver::solve_puzzle(const State &start, const State &go
 
         for (int i = 0; i < 4; ++i)
         {
-            State new_state = move_to(current.state, Directions(i));
+            State new_state = move_free_cell_to(current.state, Directions(i));
 
             if (closed.find(new_state) != closed.end())
                 continue;
@@ -245,7 +242,7 @@ std::vector<int> CPuzzleSolver::solve_puzzle(const State &start, const State &go
                 new_info.state = new_state;
                 new_info.parent = current.state;
                 new_info.distance = current.distance + 1;
-                new_info.priority = new_info.distance + estimation(new_state);
+                new_info.priority = new_info.distance + calculate_manhattan_distance(new_state);
                 open.insert(new_info);
             }
         }
@@ -284,14 +281,14 @@ void read_input(std::vector<int> &start_table, std::vector<int> &goal_table, ssi
 
 int main()
 {
-    freopen("input.txt", "r", stdin);
+    //freopen("input.txt", "r", stdin);
     std::vector<int> start_table, goal_table;
     ssize_t size;
     read_input(start_table, goal_table, size);
 
     CPuzzleSolver solver(size);
-    State start = solver.get_state(start_table);
-    State goal = solver.get_state(goal_table);
+    State start = solver.encode_vector_to_state(start_table);
+    State goal = solver.encode_vector_to_state(goal_table);
     std::vector<int> answer;
     answer = solver.solve_puzzle(start, goal);
 
