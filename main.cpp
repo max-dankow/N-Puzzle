@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <algorithm>
+#include <string.h>
 #include <vector>
 #include <set>
 #include <map>
@@ -36,19 +37,14 @@ enum Directions
     DOWN = 3
 };
 
-struct Offset
-{
-    int x[4];
-    int y[4];
-} moves = {{0, -1, 0, 1}, {-1, 0, 1, 0}};
-
-char* direction_names[4] = {"UP", "LEFT", "DOWN", "RIGHT"};
+static std::string direction_names[4] = {"UP", "LEFT", "DOWN", "RIGHT"};
 
 class CPuzzleSolver
 {
 public:
     void print_field(State state);
-    CPuzzleSolver(ssize_t new_size);
+    CPuzzleSolver(ssize_t new_size):size(new_size),
+        element_number(new_size * new_size){}
     State encode_vector_to_state(const std::vector<int> &data);//закодировать поле
     std::vector<int> solve_puzzle(const State &start, const State &goal);
 
@@ -57,22 +53,62 @@ private:
     ssize_t element_number;
     State start, goal;
 
+    struct Offset
+    {
+        int x[4];
+        int y[4];
+    } moves = {{0, -1, 0, 1}, {-1, 0, 1, 0}};
+
     State move_free_cell_to(State state, Directions direction);
     long long calculate_manhattan_distance(State state);
     int recognize_direction(State start, State finish);
     std::vector<int> restore_way(const std::map<State, Info> &closed, State goal);
     bool is_valid_coordinates(int x, int y);
+    bool is_solvable(State state);
 };
+
+bool CPuzzleSolver::is_solvable(State state)
+{
+    std::vector<int> table;
+    State local_state = state;
+    ssize_t free_index = element_number;
+
+    for (size_t i = 0; i < element_number; ++i)
+    {
+        size_t element = local_state % element_number;
+
+        if (element == 0)
+        {
+            free_index = i;
+        }
+
+        table.push_back(element);
+        local_state /= element_number;
+    }
+
+    assert(free_index < element_number);
+    int sum = free_index % size + 1;
+    for (size_t i = 0; i < element_number; ++i)
+    {
+        if (table[i] == 0)
+            continue;
+        for (size_t j = i + 1; i < element_number; ++i)
+        {
+            assert(table[i] != table[j]);
+
+            if (table[j] < table[i])
+            {
+                ++sum;
+            }
+        }
+    }
+
+    return sum % 2 == 0;
+}
 
 bool CPuzzleSolver::is_valid_coordinates(int x, int y)
 {
     return (x >= 0 && y >= 0 && x < size && y < size);
-}
-
-CPuzzleSolver::CPuzzleSolver(ssize_t new_size)
-{
-    size = new_size;
-    element_number = new_size * new_size;
 }
 
 void CPuzzleSolver::print_field(State state)
@@ -281,7 +317,7 @@ void read_input(std::vector<int> &start_table, std::vector<int> &goal_table, ssi
 
 int main()
 {
-    //freopen("input.txt", "r", stdin);
+    freopen("input.txt", "r", stdin);
     std::vector<int> start_table, goal_table;
     ssize_t size;
     read_input(start_table, goal_table, size);
