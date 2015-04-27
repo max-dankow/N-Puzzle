@@ -64,47 +64,7 @@ private:
     int recognize_direction(State start, State finish);
     std::vector<int> restore_way(const std::map<State, Info> &closed, State goal);
     bool is_valid_coordinates(int x, int y);
-    bool is_solvable(State state);
 };
-
-bool CPuzzleSolver::is_solvable(State state)
-{
-    std::vector<int> table;
-    State local_state = state;
-    ssize_t free_index = element_number;
-
-    for (size_t i = 0; i < element_number; ++i)
-    {
-        size_t element = local_state % element_number;
-
-        if (element == 0)
-        {
-            free_index = i;
-        }
-
-        table.push_back(element);
-        local_state /= element_number;
-    }
-
-    assert(free_index < element_number);
-    int sum = free_index % size + 1;
-    for (size_t i = 0; i < element_number; ++i)
-    {
-        if (table[i] == 0)
-            continue;
-        for (size_t j = i + 1; i < element_number; ++i)
-        {
-            assert(table[i] != table[j]);
-
-            if (table[j] < table[i])
-            {
-                ++sum;
-            }
-        }
-    }
-
-    return sum % 2 == 0;
-}
 
 bool CPuzzleSolver::is_valid_coordinates(int x, int y)
 {
@@ -317,7 +277,7 @@ void read_input(std::vector<int> &start_table, std::vector<int> &goal_table, ssi
 
 int main()
 {
-    freopen("input.txt", "r", stdin);
+    //freopen("input.txt", "r", stdin);
     std::vector<int> start_table, goal_table;
     ssize_t size;
     read_input(start_table, goal_table, size);
