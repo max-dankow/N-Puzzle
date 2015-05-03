@@ -30,6 +30,11 @@ bool operator <(const SetNode &a, const SetNode &b)
     return (a.priority < b.priority || (a.priority == b.priority && a.state < b.state));
 }
 
+bool operator ==(const SetNode &a, const SetNode &b)
+{
+    return a.state == b.state;
+}
+
 enum Directions
 {
     UP = 0,
@@ -347,30 +352,34 @@ std::vector<int> CPuzzleSolver::restore_way(const std::map<GameState, Info> &clo
 bool CPuzzleSolver::solve_puzzle(GameState start, GameState goal, GameState trap_state, std::vector<int> &answer)
 {
     assert(size >= 3 && size <= 4);
-
+    /*
     if (size == 4 && !is_solvable(start))
     {
         answer.clear();
         return false;
     }
-
+    */
     this->goal = goal;
     this->start = start;
     this->trap_state = trap_state;
     std::set<SetNode> open;
+    std::set<GameState> open_set_to_search;
     std::map<GameState, Info> closed;
+
     SetNode start_info;
     start_info.state = start;
     start_info.distance = 0;
     start_info.parent = -1;
     start_info.priority = calculate_heuristic(start, goal);
     open.insert(start_info);
+    open_set_to_search.insert(start);
 
     while (open.size() != 0)
     {
         SetNode current = (*open.begin());
         //std::cout << current.priority << '\n';
         open.erase(current);
+        open_set_to_search.erase(current.state);
 
         Info to_close;
         to_close.distance = current.distance;
@@ -398,17 +407,70 @@ bool CPuzzleSolver::solve_puzzle(GameState start, GameState goal, GameState trap
 
             if (new_state != current.state)
             {
-                SetNode new_info;
-                new_info.state = new_state;
-                new_info.parent = current.state;
-                new_info.distance = current.distance + 1;
-                new_info.priority = new_info.distance + calculate_heuristic(new_state, goal);
-                open.insert(new_info);
+                long long new_way_cost = current.distance + 1;
+                /*
+                SetNode to_find;
+                to_find.state = new_state;
+                */
+                //std::cout << "try to find state:\n";
+                //print_field(new_state);
+                auto find_state_info = open_set_to_search.find(new_state);//= std::find(open.begin(), open.end(), to_find);
+              //если полученное состояние уже в рассмотрении (в очереди open)
+                if (find_state_info != open_set_to_search.end())
+                {
+                    /*
+                    std::cout << "I got back:\n";
+                    print_field(find_state_info->state);
+                    std::cout << "Last cost was:" << find_state_info->distance << '\n';
+                    std::cout << "New cost is:" << current.distance + 1 << '\n';
+                    */
+                  //если возможно, то улучшаем длинну пути
+                    if (find_state_info->distance > new_way_cost)
+                    {
+                        std::cout << "I CAN IMPROVE! " << find_state_info->distance - new_way_cost << '\n';
+                        open_set_to_search.erase(find_state_info->state);
+                        open.erase(find_state_info);// !!
+                        SetNode update_node;
+                        update_node.state = new_state;
+                        update_node.parent = current.state;
+                        update_node.distance = current.distance + 1;
+                        update_node.priority = update_node.distance + calculate_heuristic(new_state, goal);
+                        open.insert(update_node);
+                        open_set_to_search.insert(new_state);// !!
+                    }
+                }
+                else
+                {
+                  //получили совершенно новое состояние
+                    SetNode new_node;
+                    new_node.state = new_state;
+                    new_node.parent = current.state;
+                    new_node.distance = current.distance + 1;
+                    new_node.priority = new_node.distance + calculate_heuristic(new_state, goal);
+                    open.insert(new_node);
+                    open_set_to_search.insert(new_state);
+                }
             }
         }
 
     }
+  //опустошаем список рассмотренных
+  //заполняем информацию о стартовой вершине и помещаем в очередь
+  //пока очередь рассматриваемых вершин не пуст
+      //извлекаем элемент из очереди с наименьшим приоритетом
+      //если достигли победного состояния, то восстанавливаем путь
+      //для всех соседних вершин:
+          //если эту вершину мы уже рассмотрели, то пропускаем
+          //если совершенно новая вершина, то добавляем в очередь, заполняем поля
+          //если уже в рассмотрении, и можем улучшить, то обновляем вершину
 }
+
+/*
+ * опен -извлечение минимума, поиск значения..
+ * клосд - поиск значения
+ * что если дублировать опен? две стуктуры - одни данные, поддерживать равенство....
+ *
+ ***/
 
 void print_answer(const std::vector<int> &answer)
 {
@@ -423,7 +485,8 @@ void print_answer(const std::vector<int> &answer)
 
 void read_input(std::vector<int> &start_table, std::vector<int> &goal_table, ssize_t &size)
 {
-    std::cin >> size;
+    //std::cin >> size;
+    size = 4;
     start_table.clear();
     goal_table.clear();
 
@@ -456,7 +519,7 @@ GameState CPuzzleSolver::generate_random_solvable_state(GameState perfect, size_
     GameState local_state = perfect;
     std::uniform_int_distribution<int> rand_direction(0, 3);
     std::uniform_int_distribution<int> moves(1, 3);
-    for (size_t i = 0; i < 30; ++i)
+    for (size_t i = 0; i < 50; ++i)
     {
         size_t count = moves(generator);
         Directions direction = Directions(rand_direction(generator));
