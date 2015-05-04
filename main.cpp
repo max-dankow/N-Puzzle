@@ -10,9 +10,9 @@
 #include <chrono>
 
 const size_t TEST_NUMBER = 100;
-const size_t RANDOM_MOVES_NUMBER = 10000;
+const size_t RANDOM_MOVES_NUMBER = 10;
 const size_t MAX_DEEP_PRECALC = 13;
-const size_t MAX_HEURISTIC_PART = 2;
+const size_t MAX_HEURISTIC_PART = 70;
 typedef unsigned long long GameState;//тип в котром будем хранить закодированное состояние поля
 
 struct SetNode
@@ -75,10 +75,10 @@ private:
     int recognize_direction(GameState start, GameState finish);
     std::vector<int> restore_way(const std::map<GameState, Info> &closed, GameState goal);
     bool is_valid_coordinates(int row, int col);
-    void get_aim_cells_coordinates(std::vector<std::pair<size_t, size_t> > &correct_position);
+    void get_aim_cells_coordinates(std::vector<std::pair<size_t, size_t> > &correct_position, GameState goal);
     bool is_solvable(GameState state);
     size_t decode_to_table(GameState state, std::vector<int> &table);
-    std::map<GameState, Info> precalc(GameState goal);
+    void precalc(GameState goal, std::map<GameState, Info> &answer);
     void precalc_heuristic(GameState goal, GameState start, std::map<GameState, Info> &answer);
     void invert_way(std::vector<int> &way);
 };
@@ -197,7 +197,7 @@ GameState CPuzzleSolver::move_free_cell_to(GameState state, Directions direction
     return encode_vector_to_state(table);
 }
 
-void CPuzzleSolver::get_aim_cells_coordinates(std::vector<std::pair<size_t, size_t> > &correct_position)
+void CPuzzleSolver::get_aim_cells_coordinates(std::vector<std::pair<size_t, size_t> > &correct_position, GameState goal)
 {
     correct_position.resize(element_number);
     GameState local_goal = goal;
@@ -217,7 +217,7 @@ void CPuzzleSolver::get_aim_cells_coordinates(std::vector<std::pair<size_t, size
 long long CPuzzleSolver::calculate_manhattan_distance(GameState state, GameState goal)
 {
     std::vector<std::pair<size_t, size_t> > correct_position;
-    get_aim_cells_coordinates(correct_position);
+    get_aim_cells_coordinates(correct_position, goal);
     int sum = 0;
     for (size_t i = 0; i < size; ++i)
     {
@@ -237,7 +237,7 @@ long long CPuzzleSolver::calculate_linear_conflict(GameState state, GameState go
     std::vector<int> table;
     decode_to_table(state, table);
     std::vector<std::pair<size_t, size_t> > aim_cell_position;
-    get_aim_cells_coordinates(aim_cell_position);
+    get_aim_cells_coordinates(aim_cell_position, goal);
     int sum = 0;
     for (size_t row = 0; row < size; ++row)
     {
@@ -281,7 +281,7 @@ long long CPuzzleSolver::calculate_linear_conflict(GameState state, GameState go
 long long CPuzzleSolver::calculate_wrong_cells(GameState state, GameState goal)
 {
     std::vector<std::pair<size_t, size_t> > correct_position;
-    get_aim_cells_coordinates(correct_position);
+    get_aim_cells_coordinates(correct_position, goal);
     int sum = 0;
     for (size_t i = 0; i < size; ++i)
     {
@@ -345,8 +345,10 @@ std::vector<int> CPuzzleSolver::restore_way(const std::map<GameState, Info> &clo
     auto state_it = closed.find(goal);
     std::vector<int> way;
 
+    std::cout << "!!!!!!!!!!\n";
     while (state_it->second.parent != -1)
     {
+        print_field(state_it->second.parent);
         way.push_back(recognize_direction(state_it->first, state_it->second.parent));
         state_it = closed.find(state_it->second.parent);
     }
@@ -389,15 +391,18 @@ bool CPuzzleSolver::solve_puzzle(GameState start, GameState goal, GameState trap
     }*/
 
     auto time_on_start = std::chrono::steady_clock::now();
-    std::map<GameState, Info> back_wave = precalc(goal);
+    std::map<GameState, Info> back_wave;
+    precalc(goal, back_wave);
+    precalc_heuristic(goal, start, back_wave);
 
     auto time_on_end = std::chrono::steady_clock::now();
     auto work_time = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(time_on_end - time_on_start).count());
     std::cout << "precalc: " << work_time.count() << "ms.\n";
-    /*for (auto it = back_wave.begin(); it != back_wave.end(); ++it)
+    for (auto it = back_wave.begin(); it != back_wave.end(); ++it)
     {
+        assert(it->first != 0);
         print_field(it->first);
-    }*/
+    }
 
     this->goal = goal;
     this->start = start;
@@ -475,7 +480,7 @@ bool CPuzzleSolver::solve_puzzle(GameState start, GameState goal, GameState trap
     }
 }
 
-std::map<GameState, Info> CPuzzleSolver::precalc(GameState goal)
+void CPuzzleSolver::precalc(GameState goal, std::map<GameState, Info> &answer)
 {
     assert(size >= 3 && size <= 4);
 
@@ -488,7 +493,7 @@ std::map<GameState, Info> CPuzzleSolver::precalc(GameState goal)
     }*/
 
     std::set<SetNode> open;
-    std::map<GameState, Info> closed, answer;
+    std::map<GameState, Info> closed;
     SetNode start_info;
     start_info.state = goal;
     start_info.distance = 0;
@@ -516,10 +521,10 @@ std::map<GameState, Info> CPuzzleSolver::precalc(GameState goal)
         to_close.parent = current.parent;
         to_close.priority = current.priority;
         closed.insert(std::make_pair(current.state, to_close));
-        if (to_close.distance == MAX_DEEP_PRECALC || current.state == goal)
-        {
-            answer.insert(std::make_pair(current.state, to_close));
-        }
+        /*if (to_close.distance == MAX_DEEP_PRECALC || current.state == goal)
+        {*/
+        answer.insert(std::make_pair(current.state, to_close));
+        //}
 
         for (int i = 0; i < 4; ++i)
         {
@@ -539,9 +544,7 @@ std::map<GameState, Info> CPuzzleSolver::precalc(GameState goal)
         }
         //++deep;
     }
-    return closed;
 }
-
 
 void CPuzzleSolver::precalc_heuristic(GameState goal, GameState start, std::map<GameState, Info> &answer)
 {
@@ -556,20 +559,27 @@ void CPuzzleSolver::precalc_heuristic(GameState goal, GameState start, std::map<
     }*/
 
     std::set<SetNode> open;
-    std::map<GameState, Info> closed, answer;
+    std::map<GameState, Info> closed;
     SetNode start_info;
     start_info.state = goal;
     start_info.distance = 0;
     start_info.parent = -1;
-    start_info.priority = start_info.distance;
+    print_field(goal);
+    print_field(start);
+    start_info.priority = start_info.distance + calculate_heuristic(goal, start);
     open.insert(start_info);
     //size_t deep = 0;
+    long long end_heuristic = calculate_heuristic(goal, start);
+    //std::cout << end_heuristic << "!!!!!!!\n";
 
+    //getchar();
     while (open.size() != 0)
     {
         SetNode current = (*open.begin());
         open.erase(current);
-        if (current.distance > MAX_DEEP_PRECALC)
+        //std::cout << current.priority - current.distance << "lol\n";
+        if (current.priority - current.distance < (long long) (end_heuristic*(1) ||
+            current.priority - current.distance > end_heuristic))
         {
             continue;
         }
@@ -584,10 +594,7 @@ void CPuzzleSolver::precalc_heuristic(GameState goal, GameState start, std::map<
         to_close.parent = current.parent;
         to_close.priority = current.priority;
         closed.insert(std::make_pair(current.state, to_close));
-        if (to_close.distance == MAX_DEEP_PRECALC || current.state == goal)
-        {
-            answer.insert(std::make_pair(current.state, to_close));
-        }
+        answer.insert(std::make_pair(current.state, to_close));
 
         for (int i = 0; i < 4; ++i)
         {
@@ -607,7 +614,6 @@ void CPuzzleSolver::precalc_heuristic(GameState goal, GameState start, std::map<
         }
         //++deep;
     }
-    return closed;
 }
 
 
