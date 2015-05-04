@@ -5,12 +5,14 @@
 #include <string.h>
 #include <vector>
 #include <set>
-#include <random>
 #include <map>
+#include <random>
 #include <chrono>
 
 const size_t TEST_NUMBER = 100;
-const size_t RANDOM_MOVES_NUMBER = 100;
+const size_t RANDOM_MOVES_NUMBER = 10000;
+const size_t MAX_DEEP_PRECALC = 13;
+const size_t MAX_HEURISTIC_PART = 2;
 typedef unsigned long long GameState;//тип в котром будем хранить закодированное состояние поля
 
 struct SetNode
@@ -52,7 +54,7 @@ public:
         element_number(new_size * new_size){}
     GameState encode_vector_to_state(const std::vector<int> &data);//закодировать поле
     bool solve_puzzle(GameState start, GameState goal, GameState trap_state, std::vector<int> &answer);
-    GameState generate_random_solvable_state(GameState perfect, size_t element_number);
+    GameState generate_random_solvable_state(GameState perfect);
 
 private:
     ssize_t size;
@@ -76,7 +78,22 @@ private:
     void get_aim_cells_coordinates(std::vector<std::pair<size_t, size_t> > &correct_position);
     bool is_solvable(GameState state);
     size_t decode_to_table(GameState state, std::vector<int> &table);
+    std::map<GameState, Info> precalc(GameState goal);
+    void precalc_heuristic(GameState goal, GameState start, std::map<GameState, Info> &answer);
+    void invert_way(std::vector<int> &way);
 };
+
+void print_answer(const std::vector<int> &answer)
+{
+    std::cout << answer.size() << '\n';
+
+    for (int d : answer)
+    {
+        std::cout << direction_names[d][0];
+    }
+    std::cout << '\n';
+}
+
 
 bool CPuzzleSolver::is_valid_coordinates(int row, int col)
 {
@@ -338,6 +355,27 @@ std::vector<int> CPuzzleSolver::restore_way(const std::map<GameState, Info> &clo
     return way;
 }
 
+void CPuzzleSolver::invert_way(std::vector<int> &way)
+{
+    for (auto it = way.begin(); it != way.end(); ++it)
+    {
+        switch (*it) {
+        case LEFT:
+            *it = RIGTH;
+            break;
+        case RIGTH:
+            *it = LEFT;
+            break;
+        case UP:
+            *it = DOWN;
+            break;
+        case DOWN:
+            *it = UP;
+            break;
+        }
+    }
+}
+
 bool CPuzzleSolver::solve_puzzle(GameState start, GameState goal, GameState trap_state, std::vector<int> &answer)
 {
     assert(size >= 3 && size <= 4);
@@ -348,6 +386,17 @@ bool CPuzzleSolver::solve_puzzle(GameState start, GameState goal, GameState trap
         return false;
 
         std::cout << "TRAP may be?\n";
+    }*/
+
+    auto time_on_start = std::chrono::steady_clock::now();
+    std::map<GameState, Info> back_wave = precalc(goal);
+
+    auto time_on_end = std::chrono::steady_clock::now();
+    auto work_time = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(time_on_end - time_on_start).count());
+    std::cout << "precalc: " << work_time.count() << "ms.\n";
+    /*for (auto it = back_wave.begin(); it != back_wave.end(); ++it)
+    {
+        print_field(it->first);
     }*/
 
     this->goal = goal;
@@ -380,9 +429,23 @@ bool CPuzzleSolver::solve_puzzle(GameState start, GameState goal, GameState trap
         to_close.priority = current.priority;
         closed.insert(std::make_pair(current.state, to_close));
 
-        if (current.state == goal)
+        /*if (current.state == goal)
         {
             answer = restore_way(closed, goal);
+            return true;
+        }*/
+        if (back_wave.find(current.state) != back_wave.end())
+        {
+            //std::cout << "WAVES CONNECTED!!!!";
+            answer = restore_way(closed, current.state);
+            //print_field(current.state);
+            print_answer(answer);
+            std::vector<int> back_way = restore_way(back_wave, current.state);
+            invert_way(back_way);
+            std::reverse(back_way.begin(), back_way.end());
+            print_answer(back_way);
+            answer.insert(answer.end(), back_way.begin(), back_way.end());
+            //getchar();
             return true;
         }
         if (current.state == trap_state)
@@ -412,7 +475,143 @@ bool CPuzzleSolver::solve_puzzle(GameState start, GameState goal, GameState trap
     }
 }
 
-GameState CPuzzleSolver::generate_random_solvable_state(GameState perfect, size_t element_number)
+std::map<GameState, Info> CPuzzleSolver::precalc(GameState goal)
+{
+    assert(size >= 3 && size <= 4);
+
+    /*if (size == 4 && !is_solvable(start))
+    {
+        answer.clear();
+        return false;
+
+        std::cout << "TRAP may be?\n";
+    }*/
+
+    std::set<SetNode> open;
+    std::map<GameState, Info> closed, answer;
+    SetNode start_info;
+    start_info.state = goal;
+    start_info.distance = 0;
+    start_info.parent = -1;
+    start_info.priority = start_info.distance;
+    open.insert(start_info);
+    //size_t deep = 0;
+
+    while (open.size() != 0)
+    {
+        SetNode current = (*open.begin());
+        open.erase(current);
+        if (current.distance > MAX_DEEP_PRECALC)
+        {
+            continue;
+        }
+
+        if (closed.find(current.state) != closed.end())
+        {
+            //std::cout << "closed refind! skipping...\n";
+            continue;
+        }
+        Info to_close;
+        to_close.distance = current.distance;
+        to_close.parent = current.parent;
+        to_close.priority = current.priority;
+        closed.insert(std::make_pair(current.state, to_close));
+        if (to_close.distance == MAX_DEEP_PRECALC || current.state == goal)
+        {
+            answer.insert(std::make_pair(current.state, to_close));
+        }
+
+        for (int i = 0; i < 4; ++i)
+        {
+            GameState new_state = move_free_cell_to(current.state, Directions(i));
+            if (closed.find(new_state) != closed.end())
+                continue;
+
+            if (new_state != current.state)
+            {
+                SetNode new_info;
+                new_info.state = new_state;
+                new_info.parent = current.state;
+                new_info.distance = current.distance + 1;
+                new_info.priority = new_info.distance;
+                open.insert(new_info);
+            }
+        }
+        //++deep;
+    }
+    return closed;
+}
+
+
+void CPuzzleSolver::precalc_heuristic(GameState goal, GameState start, std::map<GameState, Info> &answer)
+{
+    assert(size >= 3 && size <= 4);
+
+    /*if (size == 4 && !is_solvable(start))
+    {
+        answer.clear();
+        return false;
+
+        std::cout << "TRAP may be?\n";
+    }*/
+
+    std::set<SetNode> open;
+    std::map<GameState, Info> closed, answer;
+    SetNode start_info;
+    start_info.state = goal;
+    start_info.distance = 0;
+    start_info.parent = -1;
+    start_info.priority = start_info.distance;
+    open.insert(start_info);
+    //size_t deep = 0;
+
+    while (open.size() != 0)
+    {
+        SetNode current = (*open.begin());
+        open.erase(current);
+        if (current.distance > MAX_DEEP_PRECALC)
+        {
+            continue;
+        }
+
+        if (closed.find(current.state) != closed.end())
+        {
+            //std::cout << "closed refind! skipping...\n";
+            continue;
+        }
+        Info to_close;
+        to_close.distance = current.distance;
+        to_close.parent = current.parent;
+        to_close.priority = current.priority;
+        closed.insert(std::make_pair(current.state, to_close));
+        if (to_close.distance == MAX_DEEP_PRECALC || current.state == goal)
+        {
+            answer.insert(std::make_pair(current.state, to_close));
+        }
+
+        for (int i = 0; i < 4; ++i)
+        {
+            GameState new_state = move_free_cell_to(current.state, Directions(i));
+            if (closed.find(new_state) != closed.end())
+                continue;
+
+            if (new_state != current.state)
+            {
+                SetNode new_info;
+                new_info.state = new_state;
+                new_info.parent = current.state;
+                new_info.distance = current.distance + 1;
+                new_info.priority = new_info.distance + calculate_heuristic(current.state, start);
+                open.insert(new_info);
+            }
+        }
+        //++deep;
+    }
+    return closed;
+}
+
+
+GameState CPuzzleSolver::generate_random_solvable_state(GameState perfect)
 {
     GameState local_state = perfect;
     std::uniform_int_distribution<int> rand_direction(0, 3);
@@ -425,21 +624,8 @@ GameState CPuzzleSolver::generate_random_solvable_state(GameState perfect, size_
         {
             local_state = move_free_cell_to(local_state, direction);
         }
-        //print_field(local_state);
-        //std::swap(table[index(generator)], table[index(generator)]);
     }
     return local_state;
-}
-
-void print_answer(const std::vector<int> &answer)
-{
-    std::cout << answer.size() << '\n';
-
-    for (int d : answer)
-    {
-        std::cout << direction_names[d][0];
-    }
-    std::cout << '\n';
 }
 
 void read_field(std::vector<int> &start_table, size_t size)
@@ -468,7 +654,7 @@ std::vector<int> generate_goal_table(size_t element_number)
 
 void run_full_testing(size_t size)
 {
-    std::vector<int> start_table, goal_table;
+    std::vector<int> goal_table;
     std::chrono::milliseconds average_time;
     average_time = std::chrono::milliseconds (0);
     std::chrono::milliseconds max_time;
@@ -478,14 +664,10 @@ void run_full_testing(size_t size)
         CPuzzleSolver solver(size);
         goal_table = generate_goal_table(size * size);
         GameState goal = solver.encode_vector_to_state(goal_table);
-        //read_field(start_table, 4);
-        //GameState start = solver.encode_vector_to_state(start_table);
-        GameState start = solver.generate_random_solvable_state(goal, size * size);
+        GameState start = solver.generate_random_solvable_state(goal);
         std::swap(goal_table[goal_table.size() - 2], goal_table[goal_table.size() - 3]);
         GameState trap = solver.encode_vector_to_state(goal_table);
         solver.print_field(start);
-        //solver.print_field(goal);
-        //solver.print_field(trap);
 
         std::vector<int> answer;
         auto time_on_start = std::chrono::steady_clock::now();
@@ -514,5 +696,28 @@ void run_full_testing(size_t size)
 int main()
 {
     run_full_testing(4);
+    /*size_t size;
+    std::cin >> size;
+    CPuzzleSolver solver(size);
+    std::vector<int> start_table, goal_table;
+    read_field(start_table, size);
+    goal_table = generate_goal_table(size * size);
+    GameState goal = solver.encode_vector_to_state(goal_table);
+    GameState start = solver.generate_random_solvable_state(goal);
+    std::swap(goal_table[goal_table.size() - 2], goal_table[goal_table.size() - 3]);
+    GameState trap = solver.encode_vector_to_state(goal_table);
+    std::vector<int> answer;
+    auto time_on_start = std::chrono::steady_clock::now();
+    if (solver.solve_puzzle(start, goal, trap, answer))
+    {
+        print_answer(answer);
+    }
+    else
+    {
+        std::cout << "No solution.\n";
+    }
+    auto time_on_end = std::chrono::steady_clock::now();
+    auto work_time = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(time_on_end - time_on_start).count());
+    std::cout << work_time.count() << "ms.\n";*/
     return 0;
 }
