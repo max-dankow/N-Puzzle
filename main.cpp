@@ -12,8 +12,9 @@
 class CGameState
 {
 public:
-    CGameState(std::vector<char> new_field):field(new_field), size(new_field.size()){}
-    void print_state(void);
+    CGameState(const std::vector<char> &new_field, size_t new_size);
+    void print_field(void);
+
 private:
     const ssize_t INVALID_COORDINATES = -1;
 
@@ -26,8 +27,18 @@ private:
 class CPuzzleSolver
 {
 public:
-    CPuzzleSolver() {}
+    CPuzzleSolver(size_t new_game_size, CGameState new_target);
+    bool solve_puzzle(CGameState start, std::vector<int> &answer);
+private:
+    CGameState target;
+    size_t game_size;
 };
+/********************************* CGameState ****************************************/
+
+CGameState::CGameState(const std::vector<char> &new_field, size_t new_size):field(new_field), size(new_size)
+{
+    assert(new_field.size() == new_size * new_size);
+}
 
 ssize_t CGameState::get_index(ssize_t row, ssize_t column)
 {
@@ -41,19 +52,39 @@ ssize_t CGameState::get_index(ssize_t row, ssize_t column)
     }
 }
 
-void CGameState::print_state(void)
+void CGameState::print_field(void)
 {
     for (size_t row = 0; row < size; ++row)
     {
         for (size_t col = 0; col < size; ++col)
         {
-            std::cout << (int)(field[get_index(row, col)]);
+            std::cout << (int)(field[get_index(row, col)]) << ' ';
         }
         std::cout << '\n';
     }
     std::cout << '\n';
 }
+
+std::vector<char> generate_target_table(size_t size)
+{
+    std::vector<char> target_field;
+    size_t element_number = size * size;
+    for (size_t i = 0; i < element_number; ++i)
+    {
+        target_field.push_back((i + 1) % (element_number));
+    }
+    return target_field;
+}
+
+/********************************* CPuzzleSolver *************************************/
+
+CPuzzleSolver::CPuzzleSolver(size_t new_game_size, CGameState new_target):
+    target(new_target), game_size(new_game_size) {}
+
 int main()
 {
+    CGameState target(generate_target_table(4), 4);
+    target.print_field();
+    CPuzzleSolver solver(4, CGameState(generate_target_table(4), 4));
     return EXIT_SUCCESS;
 }
