@@ -1,16 +1,33 @@
-#include <stdlib.h>
-#include <iostream>
-#include <vector>
-#include <assert.h>
 #include "cgamestate.h"
 
 CGameState::CGameState(const std::vector<char> &new_field, size_t new_size):
-    field(new_field), size(new_size)
+    field(new_field), size(new_size), free_cell_index(get_free_cell_index())
 {
     assert(new_field.size() == new_size * new_size);
 }
 
-ssize_t CGameState::get_index(ssize_t row, ssize_t column)
+bool CGameState::operator<(const CGameState &other) const
+{
+    return this->field < other.field;
+}
+
+bool CGameState::operator==(const CGameState &other) const
+{
+    return this->field == other.field;
+}
+
+CGameState& CGameState::operator=(const CGameState &source)
+{
+    if (&source != this)
+    {
+        this->field = source.field;
+        this->free_cell_index = source.free_cell_index;
+        this->size = source.size;
+    }
+    return *this;
+}
+
+ssize_t CGameState::get_index(ssize_t row, ssize_t column) const
 {
     if (row >= 0 && column >= 0 && row < size && column < size)
     {
@@ -22,16 +39,68 @@ ssize_t CGameState::get_index(ssize_t row, ssize_t column)
     }
 }
 
-void CGameState::print_field(void)
+ssize_t CGameState::get_row(size_t index) const
+{
+    return index / size;
+}
+
+ssize_t CGameState::get_column(size_t index) const
+{
+    return index % size;
+}
+
+void CGameState::print_field(void) const
 {
     for (size_t row = 0; row < size; ++row)
     {
         for (size_t col = 0; col < size; ++col)
         {
-            std::cout << (int)(field[get_index(row, col)]) << ' ';
+            std::cout << (int) (field[get_index(row, col)]) << ' ';
         }
         std::cout << '\n';
     }
     std::cout << '\n';
+}
+
+size_t CGameState::get_free_cell_index(void) const
+{
+    auto search_result = std::find(field.begin(), field.end(), 0);
+    assert(search_result != field.end());
+    return search_result - field.begin();
+}
+
+bool CGameState::try_to_move_free_cell(CGameState &new_state, Directions direction) const
+{
+    ssize_t new_row = get_row(free_cell_index) + moves[direction].row_offset;
+    ssize_t new_col = get_column(free_cell_index) + moves[direction].col_offset;
+    ssize_t new_index = get_index(new_row, new_col);
+    if (new_index == INVALID_COORDINATES)
+    {
+        return false;
+    }
+    else
+    {
+        new_state = *this;
+        std::swap(new_state.field[free_cell_index], new_state.field[new_index]);
+        new_state.free_cell_index = new_index;
+        return true;
+    }
+}
+
+CGameState CGameState::shuffle_field(size_t shuffles_number)
+{
+    CGameState new_random_state = *this;
+    std::uniform_int_distribution<int> rand_direction(0, 3);
+    for (size_t i = 0; i < shuffles_number; ++i)
+    {
+        Directions direction = Directions(rand_direction(generator));
+        new_random_state.try_to_move_free_cell(new_random_state, direction);
+    }
+    return new_random_state;
+}
+
+long CGameState::calculate_heuristic(CGameState target)
+{
+    return 1;
 }
 
