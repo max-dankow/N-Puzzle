@@ -87,7 +87,7 @@ bool CGameState::try_to_move_free_cell(CGameState &new_state, Directions directi
     }
 }
 
-CGameState CGameState::shuffle_field(size_t shuffles_number)
+CGameState CGameState::shuffle_field(size_t shuffles_number) const
 {
     CGameState new_random_state = *this;
     std::uniform_int_distribution<int> rand_direction(0, 3);
@@ -99,8 +99,40 @@ CGameState CGameState::shuffle_field(size_t shuffles_number)
     return new_random_state;
 }
 
-long CGameState::calculate_heuristic(CGameState target)
+void CGameState::get_target_cells_coordinates(std::vector<std::pair<size_t, size_t> > &correct_position, CGameState target) const
 {
-    return 1;
+    correct_position.resize(field.size());
+    for (size_t row = 0; row < size; ++row)
+    {
+        for (size_t col = 0; col < size; ++col)
+        {
+            size_t index = get_index(row, col);
+            int element = (int)(target.field[index]);
+            correct_position[element].first = row;
+            correct_position[element].second = col;
+        }
+    }
+}
+
+long CGameState::calculate_manhattan_distance(const CGameState &target) const
+{
+    std::vector<std::pair<size_t, size_t> > correct_position;
+    get_target_cells_coordinates(correct_position, target);
+    int sum = 0;
+    for (size_t row = 0; row < size; ++row)
+    {
+        for (size_t col = 0; col < size; ++col)
+        {
+            int number = (int) (field[get_index(row, col)]);
+            sum += abs(correct_position[number].first - row)
+                   + abs(correct_position[number].second - col);
+        }
+    }
+    return sum;
+}
+
+long CGameState::calculate_heuristic(const CGameState &target) const
+{
+    return calculate_manhattan_distance(target);
 }
 

@@ -45,18 +45,14 @@ bool CPuzzleSolver::a_star(const CGameState &start, std::vector<Directions> &ans
     while (open.size() != 0)
     {
         SetElement current = (*open.begin());
-        //current.state.print_field();
         open.erase(current);
-
         StateInfo to_close = StateInfo(current.priority, current.distance, current.parent);
         std::pair<std::map<CGameState, StateInfo>::iterator, bool> insert_result;
         insert_result = closed.insert(std::make_pair(current.state, to_close));
-        //insert_result.first->first.print_field();
 
         if (current.state == target)
         {
             answer = restore_way(closed, target);
-            std::cout << "Got it!\n";
             return true;
         }
         for (int direction = 0; direction < 4; ++direction)
@@ -64,7 +60,6 @@ bool CPuzzleSolver::a_star(const CGameState &start, std::vector<Directions> &ans
             CGameState new_state = current.state;
             if (new_state.try_to_move_free_cell(new_state, Directions(direction)))
             {
-                //new_state.print_field();
                 if (closed.find(new_state) != closed.end())
                 {
                     continue;

@@ -25,7 +25,7 @@ public:
     bool operator<(const CGameState &other) const;
     bool operator==(const CGameState &other) const;
     void print_field(void) const;
-    CGameState shuffle_field(size_t shuffles_number);
+    CGameState shuffle_field(size_t shuffles_number) const;
 //private:
     const ssize_t INVALID_COORDINATES = -1;
     const struct
@@ -42,10 +42,11 @@ public:
     size_t get_free_cell_index(void) const;
     bool try_to_move_free_cell(CGameState &new_state, Directions direction) const;
     CGameState& operator=(const CGameState &source);
-    long calculate_heuristic(CGameState target);
-    long calculate_manhattan_distance(CGameState target);
-    long calculate_linear_conflict(CGameState target);
-    long calculate_wrong_cells(CGameState target);
+    void get_target_cells_coordinates(std::vector<std::pair<size_t, size_t> > &correct_position, CGameState target) const;
+    long calculate_heuristic(const CGameState &target) const;
+    long calculate_manhattan_distance(const CGameState &target) const;
+    long calculate_linear_conflict(const CGameState &target) const;
+    long calculate_wrong_cells(const CGameState &target) const;
 
 };
 

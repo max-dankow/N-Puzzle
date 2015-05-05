@@ -42,11 +42,12 @@ int main()
     int size = GAME_SIZE;
     CGameState target(generate_target_table(size), size);
     CGameState test_state = target.shuffle_field(RANDOM_MOVES_NUMBER);
+    target.print_field();
+    test_state.print_field();
+
     std::vector<Directions> answer;
     CPuzzleSolver solver(size, CGameState(generate_target_table(size), size));
     solver.solve_puzzle(test_state, answer);
-    target.print_field();
-    test_state.print_field();
     print_answer(answer);
     return EXIT_SUCCESS;
 }
