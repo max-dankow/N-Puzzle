@@ -5,7 +5,10 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <limits>
 #include "cgamestate.h"
+
+const bool SHOW_TIME = true;
 
 struct StateInfo
 {
@@ -34,18 +37,27 @@ struct SetElement
     std::map<CGameState, StateInfo>::iterator parent;
 };
 
+enum Algorithm
+{
+    A_STAR = 0,
+    IDA_STAR = 1
+};
+
 class CPuzzleSolver
 {
 public:
     CPuzzleSolver(size_t new_game_size, const CGameState &new_target);
-    bool solve_puzzle(const CGameState &start, std::vector<Directions> &answer);
+    bool solve_puzzle(const CGameState &start, std::vector<Directions> &answer, Algorithm algo);
 private:
+    const long FOUND = -1;
     CGameState target;
     size_t game_size;
 
     Directions recognize_direction(CGameState start, CGameState finish) const;
     std::vector<Directions> restore_way(const std::map<CGameState, StateInfo> &closed, const CGameState &finish) const;
     bool a_star(const CGameState &start, std::vector<Directions> &answer);
+    bool ida_star(const CGameState &start, std::vector<Directions> &answer);
+    long ida_star_search(const CGameState &current, const CGameState &parent, long distance, long bound, std::vector<Directions> &answer) const;
 };
 
 #endif // CPUZZLESOLVER_H

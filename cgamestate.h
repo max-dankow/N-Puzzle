@@ -46,7 +46,7 @@ public:
     long calculate_heuristic(const CGameState &target) const;
     long calculate_manhattan_distance(const CGameState &target) const;
     long calculate_linear_conflict(const CGameState &target) const;
-    long calculate_wrong_cells(const CGameState &target) const;
+    long calculate_tiles_out_of_row_and_col(const CGameState &target) const;
 
 };
 

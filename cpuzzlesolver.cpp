@@ -1,3 +1,4 @@
+#include <chrono>
 #include "cpuzzlesolver.h"
 
 CPuzzleSolver::CPuzzleSolver(size_t new_game_size, const CGameState &new_target):
@@ -27,11 +28,9 @@ std::vector<Directions> CPuzzleSolver::restore_way(const std::map<CGameState, St
 
     while (state_it->second.parent != closed.end())
     {
-        //state_it->second.parent->first.print_field();//
         way.push_back(recognize_direction(state_it->second.parent->first, state_it->first));
         state_it = state_it->second.parent;
     }
-
     std::reverse(way.begin(), way.end());
     return way;
 }
@@ -64,7 +63,7 @@ bool CPuzzleSolver::a_star(const CGameState &start, std::vector<Directions> &ans
                 {
                     continue;
                 }
-                open.insert(SetElement(new_state, current.distance + new_state.calculate_heuristic(target),
+                open.insert(SetElement(new_state, current.distance + new_state.calculate_heuristic(target) + 1,
                     current.distance + 1, insert_result.first));
             }
         }
@@ -72,8 +71,77 @@ bool CPuzzleSolver::a_star(const CGameState &start, std::vector<Directions> &ans
     return false;
 }
 
-bool CPuzzleSolver::solve_puzzle(const CGameState &start, std::vector<Directions> &answer)
+long CPuzzleSolver::ida_star_search(const CGameState &current, const CGameState &parent,
+    long distance, long bound, std::vector<Directions> &answer) const
 {
-    return a_star(start, answer);
+    long priority = distance + current.calculate_heuristic(target);
+    if (priority > bound)
+    {
+        return priority;
+    }
+    if (current == target)
+    {
+        answer.clear();
+        return FOUND;
+    }
+    long min = std::numeric_limits<long>::max();
+    for (int direction = 0; direction < 4; ++direction)
+    {
+        CGameState new_state = current;
+        if (new_state.try_to_move_free_cell(new_state, Directions(direction))&&
+            !(new_state == parent))
+        {
+            long search_result = ida_star_search(new_state, current, distance + 1, bound, answer);
+            if (search_result == FOUND)
+            {
+                answer.push_back(Directions(direction));
+                return FOUND;
+            }
+            min = std::min(search_result, min);
+        }
+    }
+    return min;
 }
 
+bool CPuzzleSolver::ida_star(const CGameState &start, std::vector<Directions> &answer)
+{
+    long bound = start.calculate_heuristic(target);
+    while (true)
+    {
+        long search_result = ida_star_search(start, start, 0, bound, answer);
+        if (search_result == FOUND)
+        {
+            std::reverse(answer.begin(), answer.end());
+            return true;
+        }
+        if (search_result == std::numeric_limits<long>::max())
+        {
+            return false;
+        }
+        bound = search_result;
+    }
+}
+
+bool CPuzzleSolver::solve_puzzle(const CGameState &start, std::vector<Directions> &answer, Algorithm algo)
+{
+    auto time_on_start = std::chrono::steady_clock::now();
+
+    bool verdict;
+    switch (algo)
+    {
+    case A_STAR:
+        verdict = a_star(start, answer);
+        break;
+    case IDA_STAR:
+        verdict = ida_star(start, answer);
+        break;
+    }
+
+    auto time_on_end = std::chrono::steady_clock::now();
+    auto work_time = std::chrono::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(time_on_end - time_on_start).count());
+    if (SHOW_TIME)
+    {
+        std::cout << work_time.count() << " ms.\n";
+    }
+    return verdict;
+}

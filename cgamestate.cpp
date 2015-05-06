@@ -118,14 +118,84 @@ long CGameState::calculate_manhattan_distance(const CGameState &target) const
 {
     std::vector<std::pair<size_t, size_t> > correct_position;
     get_target_cells_coordinates(correct_position, target);
-    int sum = 0;
+    long sum = 0;
     for (size_t row = 0; row < size; ++row)
     {
         for (size_t col = 0; col < size; ++col)
         {
             int number = (int) (field[get_index(row, col)]);
             sum += abs(correct_position[number].first - row)
-                   + abs(correct_position[number].second - col);
+                + abs(correct_position[number].second - col);
+        }
+    }
+    return sum;
+}
+
+long CGameState::calculate_linear_conflict(const CGameState &target) const
+{
+    std::vector<std::pair<size_t, size_t> > target_tiles_position;
+    get_target_cells_coordinates(target_tiles_position, target);
+    long sum = 0;
+    for (size_t row = 0; row < size; ++row)
+    {
+        for (size_t col = 0; col < size; ++col)
+        {
+            size_t current_index = get_index(row, col);
+            if (field[current_index] == 0)
+            {
+                continue;
+            }
+            if (target_tiles_position[field[current_index]].first == row)
+            {
+                for (size_t cmp_col = col + 1; cmp_col < size; ++cmp_col)
+                {
+                    size_t cmp_index = get_index(row, cmp_col);
+                    if ((field[cmp_index] != 0) &&
+                        (target_tiles_position[field[cmp_index]].first == row) &&
+                        (target_tiles_position[field[cmp_index]].second <
+                         target_tiles_position[field[current_index]].second))
+                    {
+                        sum += 2;
+                    }
+                }
+            }
+            if (target_tiles_position[field[current_index]].second == col)
+            {
+                for (size_t cmp_row = row + 1; cmp_row < size; ++cmp_row)
+                {
+                    size_t cmp_index = get_index(cmp_row, col);
+                    if ((field[cmp_index] != 0) &&
+                        (target_tiles_position[field[cmp_index]].second == col) &&
+                        (target_tiles_position[field[cmp_index]].first <
+                         target_tiles_position[field[current_index]].first))
+                    {
+                        sum += 2;
+                    }
+                }
+            }
+        }
+    }
+    return sum;
+}
+
+long CGameState::calculate_tiles_out_of_row_and_col(const CGameState &target) const
+{
+    std::vector<std::pair<size_t, size_t> > target_tiles_position;
+    get_target_cells_coordinates(target_tiles_position, target);
+    int sum = 0;
+    for (size_t row = 0; row < size; ++row)
+    {
+        for (size_t col = 0; col < size; ++col)
+        {
+            ssize_t index = get_index(row, col);
+            if (target_tiles_position[field[index]].first != row)
+            {
+                ++sum;
+            }
+            if (target_tiles_position[field[index]].second != col)
+            {
+                ++sum;
+            }
         }
     }
     return sum;
@@ -133,6 +203,10 @@ long CGameState::calculate_manhattan_distance(const CGameState &target) const
 
 long CGameState::calculate_heuristic(const CGameState &target) const
 {
-    return calculate_manhattan_distance(target);
+    long heuristic = 0;
+    heuristic += calculate_manhattan_distance(target);
+    heuristic += calculate_linear_conflict(target);
+    heuristic += calculate_tiles_out_of_row_and_col(target);
+    return heuristic;
 }
 

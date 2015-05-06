@@ -3,8 +3,8 @@
 #include "cgamestate.h"
 #include "cpuzzlesolver.h"
 
-const int GAME_SIZE = 3;
-const size_t RANDOM_MOVES_NUMBER = 1000;
+const int GAME_SIZE = 4;
+const size_t RANDOM_MOVES_NUMBER = 10000;
 const bool DOWN_LEFT_CONER_ZERO = true;
 const std::string direction_names[4] = {"UP", "LEFT", "RIGHT", "DOWN"};
 
@@ -47,7 +47,10 @@ int main()
 
     std::vector<Directions> answer;
     CPuzzleSolver solver(size, CGameState(generate_target_table(size), size));
-    solver.solve_puzzle(test_state, answer);
+    solver.solve_puzzle(test_state, answer, A_STAR);
+    print_answer(answer);
+
+    solver.solve_puzzle(test_state, answer, IDA_STAR);
     print_answer(answer);
     return EXIT_SUCCESS;
 }
