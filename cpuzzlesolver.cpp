@@ -56,7 +56,7 @@ std::vector<Directions> CPuzzleSolver::restore_way(const std::map<CGameState, St
     return way;
 }
 
-std::map<CGameState, StateInfo> CPuzzleSolver::pre_calc(const CGameState &start, std::vector<Directions> &answer, size_t limit)
+std::map<CGameState, StateInfo> CPuzzleSolver::pre_calc(const CGameState &start, size_t limit)
 {
     std::set<SetElement> open;
     std::map<CGameState, StateInfo> closed;
@@ -94,7 +94,8 @@ std::map<CGameState, StateInfo> CPuzzleSolver::pre_calc(const CGameState &start,
 bool CPuzzleSolver::a_star(const CGameState &start, std::vector<Directions> &answer, size_t back_limit)
 {
     std::set<SetElement> open;
-    std::map<CGameState, StateInfo> back_wave = pre_calc(start, answer, back_limit);
+    std::map<CGameState, StateInfo> back_wave = pre_calc(start, back_limit);
+    std::map<CGameState, StateInfo> closed;
     open.insert(SetElement(start, start.calculate_heuristic(target), 0, closed.end()));
 
     while (open.size() != 0)

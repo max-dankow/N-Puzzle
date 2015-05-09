@@ -59,7 +59,7 @@ private:
     std::vector<Directions> restore_way(const std::map<CGameState, StateInfo> &closed, const CGameState &finish) const;
     void invert_way(std::vector<Directions> &way);
     bool a_star(const CGameState &start, std::vector<Directions> &answer, size_t back_limit);
-    std::map<CGameState, StateInfo> pre_calc(const CGameState &start, std::vector<Directions> &answer, size_t limit);
+    std::map<CGameState, StateInfo> pre_calc(const CGameState &start, size_t limit);
     bool ida_star(const CGameState &start, std::vector<Directions> &answer);
     long ida_star_search(const CGameState &current, const CGameState &parent, long distance, long bound, std::vector<Directions> &answer) const;
 };
