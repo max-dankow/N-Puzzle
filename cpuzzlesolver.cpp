@@ -20,6 +20,27 @@ Directions CPuzzleSolver::recognize_direction(CGameState start, CGameState finis
     assert(false);
 }
 
+void CPuzzleSolver::invert_way(std::vector<Directions> &way)
+{
+    for (auto it = way.begin(); it != way.end(); ++it)
+    {
+        switch (*it) {
+        case LEFT:
+            *it = RIGTH;
+            break;
+        case RIGTH:
+            *it = LEFT;
+            break;
+        case UP:
+            *it = DOWN;
+            break;
+        case DOWN:
+            *it = UP;
+            break;
+        }
+    }
+}
+
 std::vector<Directions> CPuzzleSolver::restore_way(const std::map<CGameState, StateInfo> &closed, const CGameState &finish) const
 {
     auto state_it = closed.find(finish);
@@ -35,11 +56,11 @@ std::vector<Directions> CPuzzleSolver::restore_way(const std::map<CGameState, St
     return way;
 }
 
-bool CPuzzleSolver::a_star(const CGameState &start, std::vector<Directions> &answer)
+std::map<CGameState, StateInfo> CPuzzleSolver::pre_calc(const CGameState &start, std::vector<Directions> &answer, size_t limit)
 {
     std::set<SetElement> open;
     std::map<CGameState, StateInfo> closed;
-    open.insert(SetElement(start, 0, 1, closed.end()));
+    open.insert(SetElement(target, target.calculate_heuristic(start), 0, closed.end()));
 
     while (open.size() != 0)
     {
@@ -49,9 +70,48 @@ bool CPuzzleSolver::a_star(const CGameState &start, std::vector<Directions> &ans
         std::pair<std::map<CGameState, StateInfo>::iterator, bool> insert_result;
         insert_result = closed.insert(std::make_pair(current.state, to_close));
 
-        if (current.state == target)
+        if (current.distance >= limit)
         {
-            answer = restore_way(closed, target);
+            continue;
+        }
+        for (int direction = 0; direction < 4; ++direction)
+        {
+            CGameState new_state = current.state;
+            if (new_state.try_to_move_free_cell(new_state, Directions(direction)))
+            {
+                if (closed.find(new_state) != closed.end())
+                {
+                    continue;
+                }
+                open.insert(SetElement(new_state, current.distance/* + new_state.calculate_heuristic(start)*/ + 1,
+                    current.distance + 1, insert_result.first));
+            }
+        }
+    }
+    return closed;
+}
+
+bool CPuzzleSolver::a_star(const CGameState &start, std::vector<Directions> &answer, size_t back_limit)
+{
+    std::set<SetElement> open;
+    std::map<CGameState, StateInfo> back_wave = pre_calc(start, answer, back_limit);
+    open.insert(SetElement(start, start.calculate_heuristic(target), 0, closed.end()));
+
+    while (open.size() != 0)
+    {
+        SetElement current = (*open.begin());
+        open.erase(current);
+        StateInfo to_close = StateInfo(current.priority, current.distance, current.parent);
+        std::pair<std::map<CGameState, StateInfo>::iterator, bool> insert_result;
+        insert_result = closed.insert(std::make_pair(current.state, to_close));
+
+        if (back_wave.find(current.state) != back_wave.end())
+        {
+            answer = restore_way(closed, current.state);
+            std::vector<Directions> back_way = restore_way(back_wave, current.state);
+            invert_way(back_way);
+            std::reverse(back_way.begin(), back_way.end());
+            answer.insert(answer.end(), back_way.begin(), back_way.end());
             return true;
         }
         for (int direction = 0; direction < 4; ++direction)
@@ -88,7 +148,7 @@ long CPuzzleSolver::ida_star_search(const CGameState &current, const CGameState 
     for (int direction = 0; direction < 4; ++direction)
     {
         CGameState new_state = current;
-        if (new_state.try_to_move_free_cell(new_state, Directions(direction))&&
+        if (new_state.try_to_move_free_cell(new_state, Directions(direction)) &&
             !(new_state == parent))
         {
             long search_result = ida_star_search(new_state, current, distance + 1, bound, answer);
@@ -122,15 +182,32 @@ bool CPuzzleSolver::ida_star(const CGameState &start, std::vector<Directions> &a
     }
 }
 
-bool CPuzzleSolver::solve_puzzle(const CGameState &start, std::vector<Directions> &answer, Algorithm algo)
+bool CPuzzleSolver::check_solution(const std::vector<Directions> &answer, const CGameState &start) const
+{
+    CGameState state = start;
+    for (Directions direction:answer)
+    {
+        if (!state.try_to_move_free_cell(state, direction))
+        {
+            return false;
+        }
+    }
+    return state == target;
+}
+
+bool CPuzzleSolver::solve_puzzle(const CGameState &start, std::vector<Directions> &answer, Algorithm algo, size_t back_limit)
 {
     auto time_on_start = std::chrono::steady_clock::now();
+    if (!start.is_solvable())
+    {
+        return false;
+    }
 
     bool verdict;
     switch (algo)
     {
     case A_STAR:
-        verdict = a_star(start, answer);
+        verdict = a_star(start, answer, back_limit);
         break;
     case IDA_STAR:
         verdict = ida_star(start, answer);

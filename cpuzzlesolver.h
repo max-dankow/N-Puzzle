@@ -9,6 +9,7 @@
 #include "cgamestate.h"
 
 const bool SHOW_TIME = true;
+const size_t LIMIT = 13;
 
 struct StateInfo
 {
@@ -47,7 +48,8 @@ class CPuzzleSolver
 {
 public:
     CPuzzleSolver(size_t new_game_size, const CGameState &new_target);
-    bool solve_puzzle(const CGameState &start, std::vector<Directions> &answer, Algorithm algo);
+    bool solve_puzzle(const CGameState &start, std::vector<Directions> &answer, Algorithm algo, size_t back_limit);
+    bool check_solution(const std::vector<Directions> &answer, const CGameState &start) const;
 private:
     const long FOUND = -1;
     CGameState target;
@@ -55,7 +57,9 @@ private:
 
     Directions recognize_direction(CGameState start, CGameState finish) const;
     std::vector<Directions> restore_way(const std::map<CGameState, StateInfo> &closed, const CGameState &finish) const;
-    bool a_star(const CGameState &start, std::vector<Directions> &answer);
+    void invert_way(std::vector<Directions> &way);
+    bool a_star(const CGameState &start, std::vector<Directions> &answer, size_t back_limit);
+    std::map<CGameState, StateInfo> pre_calc(const CGameState &start, std::vector<Directions> &answer, size_t limit);
     bool ida_star(const CGameState &start, std::vector<Directions> &answer);
     long ida_star_search(const CGameState &current, const CGameState &parent, long distance, long bound, std::vector<Directions> &answer) const;
 };

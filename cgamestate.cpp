@@ -1,19 +1,10 @@
 #include "cgamestate.h"
 
 CGameState::CGameState(const std::vector<char> &new_field, size_t new_size):
-    field(new_field), size(new_size), free_cell_index(get_free_cell_index())
+    field(new_field), size(new_size)
 {
     assert(new_field.size() == new_size * new_size);
-}
-
-bool CGameState::operator<(const CGameState &other) const
-{
-    return this->field < other.field;
-}
-
-bool CGameState::operator==(const CGameState &other) const
-{
-    return this->field == other.field;
+    free_cell_index = get_free_cell_index();
 }
 
 CGameState& CGameState::operator=(const CGameState &source)
@@ -64,7 +55,7 @@ void CGameState::print_field(void) const
 
 size_t CGameState::get_free_cell_index(void) const
 {
-    auto search_result = std::find(field.begin(), field.end(), 0);
+    auto search_result = std::find(field.begin(), field.end(), '\0');
     assert(search_result != field.end());
     return search_result - field.begin();
 }
@@ -199,6 +190,34 @@ long CGameState::calculate_tiles_out_of_row_and_col(const CGameState &target) co
         }
     }
     return sum;
+}
+
+bool CGameState::is_solvable(void) const
+{
+    if (!DOWN_LEFT_CONER_ZERO)
+    {
+        return true;
+    }
+    long sum = 0;
+    for (size_t before = 0; before < field.size(); ++before)
+    {
+        for (size_t after = before + 1; after < field.size(); ++after)
+        {
+            if (before != free_cell_index && after != free_cell_index && field[before] > field[after])
+            {
+                sum++;
+            }
+        }
+    }
+    if (size % 2 == 0)
+    {
+        sum += get_row(free_cell_index);
+        return sum % 2 != 0;
+    }
+    else
+    {
+        return sum % 2 == 0;
+    }
 }
 
 long CGameState::calculate_heuristic(const CGameState &target) const
