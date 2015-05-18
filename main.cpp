@@ -63,7 +63,7 @@ void run_for_online_judge(void)
 
         std::vector<Directions> answer;
         CPuzzleSolver solver(size, target);
-        if (solver.solve_puzzle(test_state, answer, A_STAR, 13))
+        if (solver.solve_puzzle(test_state, answer, A_STAR, test_state.calculate_heuristic(target) / 7))
         {
             print_answer(answer);
         }
@@ -79,8 +79,11 @@ int main()
     while(1)
     {
         int size = GAME_SIZE;
+        std::vector<char> test_field;
         CGameState target(generate_target_table(size), size);
         CGameState test_state = target.shuffle_field(RANDOM_MOVES_NUMBER);
+        //read_input_puzzle(size, test_field);
+        //CGameState test_state(test_field, size);
         test_state.print_field();
 
         std::vector<Directions> answer;

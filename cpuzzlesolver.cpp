@@ -37,6 +37,8 @@ void CPuzzleSolver::invert_way(std::vector<Directions> &way)
         case DOWN:
             *it = UP;
             break;
+        default:
+            assert(false);
         }
     }
 }
@@ -204,7 +206,7 @@ bool CPuzzleSolver::solve_puzzle(const CGameState &start, std::vector<Directions
         return false;
     }
 
-    bool verdict;
+    bool verdict = false;
     switch (algo)
     {
     case A_STAR:

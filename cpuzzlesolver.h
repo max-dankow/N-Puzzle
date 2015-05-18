@@ -9,7 +9,6 @@
 #include "cgamestate.h"
 
 const bool SHOW_TIME = true;
-const size_t LIMIT = 13;
 
 struct StateInfo
 {
